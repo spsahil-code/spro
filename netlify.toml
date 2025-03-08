@@ -1,0 +1,14 @@
+[build]
+  command = "npm run build"
+  publish = ".next"
+
+[build.environment]
+  NEXT_PUBLIC_FIREBASE_API_KEY = "AIzaSyA_BziWjFtqgWxPwr9sJuUp5VShTjZK6hw"
+  NEXT_PUBLIC_FIREBASE_AUTH_DOMAIN = "spfinance-fa3e4.firebaseapp.com"
+  NEXT_PUBLIC_FIREBASE_PROJECT_ID = "spfinance-fa3e4"
+  NEXT_PUBLIC_FIREBASE_STORAGE_BUCKET = "spfinance-fa3e4.firebasestorage.app"
+  NEXT_PUBLIC_FIREBASE_MESSAGING_SENDER_ID = "282955578333"
+  NEXT_PUBLIC_FIREBASE_APP_ID = "1:282955578333:web:89b528cda48e8cae769434"
+
+[[plugins]]
+  package = "@netlify/plugin-nextjs" 
