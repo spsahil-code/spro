@@ -607,6 +607,14 @@ export async function GET(request, { params }) {
       doc.text(`FINANCIAL YEAR: ${year}`, pageWidth / 2, yPos, { align: 'center' });
       yPos += lineHeight * 1.5;  // Increased spacing after financial year
 
+      // Client Address
+      if (client.address && client.address.trim()) {
+        doc.setFontSize(10);  // Slightly smaller for address
+        const fullAddress = `${client.address}, ${client.city || ''}, ${client.state || ''}, ${client.pincode || ''}`.replace(/, ,/g, ',').replace(/, $/, '');
+        doc.text(fullAddress, pageWidth / 2, yPos, { align: 'center' });
+        yPos += lineHeight * 1.5;  // Increased spacing after address
+      }
+
       // Document title
       doc.setFontSize(14);
       doc.setTextColor(0, 0, 0); // Black
@@ -686,7 +694,7 @@ export async function GET(request, { params }) {
       doc.setFont('arial', 'bold');
       
       // CAPITAL ACCOUNT section
-      doc.text('CAPITAL ACCOUNT', leftCol1X, yPos);
+      drawUnderlinedText(doc, 'CAPITAL ACCOUNT', leftCol1X, yPos);
       yPos += lineHeight * 1.5;
       
       doc.setFont('arial', 'normal');
@@ -713,11 +721,8 @@ export async function GET(request, { params }) {
       if (Array.isArray(data.otherIncomes) && data.otherIncomes.length > 0) {
         const nonZeroIncomes = data.otherIncomes.filter(income => parseFloat(income.amount || 0) !== 0);
         if (nonZeroIncomes.length > 0) {
-          doc.text('ADD: OTHER INCOMES', leftCol1X, yPos);
-          yPos += lineHeight;
-          
           nonZeroIncomes.forEach(income => {
-            doc.text(income.description.toUpperCase(), leftCol1X + 10, yPos);
+            doc.text(income.description.toUpperCase(), leftCol1X, yPos);
             doc.text(formatCurrency(income.amount), leftCol2X, yPos, { align: 'right' });
             capitalSubTotal += parseFloat(income.amount || 0);
             yPos += lineHeight;
@@ -758,13 +763,10 @@ export async function GET(request, { params }) {
         });
         
         if (nonZeroExpenses.length > 0) {
-          doc.text('LESS: OTHER EXPENSES', leftCol1X, yPos);
-          yPos += lineHeight;
-        
           nonZeroExpenses.forEach(expense => {
             const amount = parseFloat(expense.amount || 0);
             console.log('Adding other expense:', expense.description, amount);
-            doc.text(expense.description.toUpperCase(), leftCol1X + 10, yPos);
+            doc.text(expense.description.toUpperCase(), leftCol1X, yPos);
             doc.text(formatCurrency(amount), leftCol2X, yPos, { align: 'right' });
             deductions += amount;
             yPos += lineHeight;
@@ -815,11 +817,14 @@ export async function GET(request, { params }) {
         doc.setFont('arial', 'normal');
         let loansTotal = 0;
         data.loans.forEach(loan => {
-          doc.text(loan.description.toUpperCase(), leftCol1X, yPos);
           const amount = parseFloat(loan.amount || 0);
-          doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
-          loansTotal += amount;
-          yPos += lineHeight * 2; // Increased spacing between loan entries
+          // Only add loans with non-zero amounts
+          if (amount !== 0) {
+            doc.text(loan.description.toUpperCase(), leftCol1X, yPos);
+            doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
+            loansTotal += amount;
+            yPos += lineHeight * 2; // Increased spacing between loan entries
+          }
         });
         totalLiabilities += loansTotal;
       }
@@ -829,11 +834,14 @@ export async function GET(request, { params }) {
         doc.setFont('arial', 'normal');
         let creditorsTotal = 0;
         data.sundryCreditors.forEach(creditor => {
-          doc.text(creditor.description.toUpperCase(), leftCol1X, yPos);
           const amount = parseFloat(creditor.amount || 0);
-          doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
-          creditorsTotal += amount;
-          yPos += lineHeight * 2; // Increased spacing between creditor entries
+          // Only add creditors with non-zero amounts
+          if (amount !== 0) {
+            doc.text(creditor.description.toUpperCase(), leftCol1X, yPos);
+            doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
+            creditorsTotal += amount;
+            yPos += lineHeight * 2; // Increased spacing between creditor entries
+          }
         });
         totalLiabilities += creditorsTotal;
       }
@@ -843,53 +851,51 @@ export async function GET(request, { params }) {
         doc.setFont('arial', 'normal');
         let provisionsTotal = 0;
         data.provisions.forEach(provision => {
-          doc.text(provision.description.toUpperCase(), leftCol1X, yPos);
           const amount = parseFloat(provision.amount || 0);
-          doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
-          provisionsTotal += amount;
-          yPos += lineHeight * 2; // Increased spacing between provision entries
+          // Only add provisions with non-zero amounts
+          if (amount !== 0) {
+            doc.text(provision.description.toUpperCase(), leftCol1X, yPos);
+            doc.text(formatCurrency(amount), leftCol3X, yPos, { align: 'right' });
+            provisionsTotal += amount;
+            yPos += lineHeight * 2; // Increased spacing between provision entries
+          }
         });
         totalLiabilities += provisionsTotal;
       }
       
       // Assets Side
       // Fixed Assets section
-      doc.setFontSize(10);
       doc.setFont('arial', 'bold');
       drawUnderlinedText(doc, 'FIXED ASSETS', rightCol1X, rightYPos);
       rightYPos += lineHeight * 1.5;
 
       let fixedAssetsTotal = 0;
-      if (Array.isArray(data.fixedAssets)) {
-        const nonZeroFixedAssets = data.fixedAssets.filter(asset => parseFloat(asset.amount || 0) !== 0);
-        if (nonZeroFixedAssets.length > 0) {
-          doc.setFont('arial', 'normal');
-          nonZeroFixedAssets.forEach(asset => {
-            doc.text(asset.description.toUpperCase(), rightCol1X, rightYPos);
-            doc.text(formatCurrency(asset.amount), rightCol3X, rightYPos, { align: 'right' });
-            fixedAssetsTotal += parseFloat(asset.amount || 0);
-            rightYPos += lineHeight * 2; // Increased spacing between fixed asset entries
-          });
-          // Display fixed assets total with better alignment
-          doc.text(formatCurrency(fixedAssetsTotal), rightCol3X, rightYPos - lineHeight * 2, { align: 'right' });
-          rightYPos += lineHeight * 0.5;
-        }
-      }
-
-      // Depreciating Assets section
-      doc.setFont('arial', 'bold');
-      drawUnderlinedText(doc, 'DEPRECIATING ASSETS', rightCol1X, rightYPos);
-      rightYPos += lineHeight * 1.5;
-
-      let depreciatingAssetsTotal = 0;
       if (Array.isArray(data.depreciatingAssets)) {
-        depreciatingAssetsTotal = data.depreciatingAssets.reduce((total, asset) => 
-          total + parseFloat(asset.closingBalance || 0), 0);
+        // Use the closing total from Schedule A calculation
+        const scheduleATotals = {
+          opening: 0,
+          addition: 0,
+          total: 0,
+          depreciation: 0,
+          closing: 0
+        };
         
-        if (depreciatingAssetsTotal !== 0) {
+        data.depreciatingAssets.forEach(asset => {
+          scheduleATotals.closing += parseFloat(asset.closingBalance || 0);
+        });
+        
+        if (Array.isArray(data.fixedAssets)) {
+          data.fixedAssets.forEach(asset => {
+            scheduleATotals.closing += parseFloat(asset.amount || 0);
+          });
+        }
+        
+        fixedAssetsTotal = scheduleATotals.closing;
+        
+        if (fixedAssetsTotal !== 0) {
           doc.setFont('arial', 'normal');
           doc.text('AS PER SCHEDULE A', rightCol1X, rightYPos);
-          doc.text(formatCurrency(depreciatingAssetsTotal), rightCol3X, rightYPos, { align: 'right' });
+          doc.text(formatCurrency(fixedAssetsTotal), rightCol3X, rightYPos, { align: 'right' });
           rightYPos += lineHeight * 1.5;
         }
       }
@@ -959,34 +965,39 @@ export async function GET(request, { params }) {
       if (allCurrentAssets.length > 0) {
         console.log('Processing current assets:', allCurrentAssets);
 
-        allCurrentAssets.forEach(asset => {
+        allCurrentAssets.forEach((asset, index) => {
           const amount = parseFloat(asset.amount || 0);
           if (amount !== 0) {
             console.log(`Adding current asset: ${asset.description} - ${amount}`);
             doc.text(asset.description.toUpperCase(), rightCol1X, rightYPos);
             doc.text(formatCurrency(amount), rightCol3X, rightYPos, { align: 'right' });
             rightYPos += lineHeight;
+            
+            // Add an extra line of space after each asset, except the last one
+            if (index < allCurrentAssets.length - 1) {
+              rightYPos += lineHeight;
+            }
           }
         });
 
-        // Draw line before total
-        doc.setLineWidth(0.2);
-        doc.line(rightCol1X, rightYPos, rightCol3X, rightYPos);
-        rightYPos += lineHeight;
+        // Draw line before total (now removed)
+        // doc.setLineWidth(0.2);
+        // doc.line(rightCol1X, rightYPos, rightCol3X, rightYPos);
+        // rightYPos += lineHeight;
 
-        // Display current assets total
-        doc.setFont('arial', 'bold');
-        console.log('Current Assets Total:', currentAssetsTotal);
-        doc.text('TOTAL CURRENT ASSETS', rightCol1X, rightYPos);
-        doc.text(formatCurrency(currentAssetsTotal), rightCol3X, rightYPos, { align: 'right' });
-        rightYPos += lineHeight * 2;
+        // Removed Total Current Assets display
+        // doc.setFont('arial', 'bold');
+        // console.log('Current Assets Total:', currentAssetsTotal);
+        // doc.text('TOTAL CURRENT ASSETS', rightCol1X, rightYPos);
+        // doc.text(formatCurrency(currentAssetsTotal), rightCol3X, rightYPos, { align: 'right' });
+        // rightYPos += lineHeight * 2;
       } else {
         console.log('No current assets to display');
         currentAssetsTotal = 0;  // Ensure it's set to 0 if no assets
       }
 
       // Total Assets
-      const totalAssets = fixedAssetsTotal + depreciatingAssetsTotal + currentAssetsTotal;
+      const totalAssets = fixedAssetsTotal + currentAssetsTotal;
 
       // Use the maximum of yPos and rightYPos to align both totals
       yPos = Math.max(yPos, rightYPos) + lineHeight * 3;
@@ -1046,8 +1057,8 @@ export async function GET(request, { params }) {
     doc.addPage();
     yPos = margin;
 
-    // Schedule A - Depreciating Assets
-    addPageHeader('SCHEDULE A - DEPRECIATING ASSETS');
+    // Schedule A - Fixed Assets
+    addPageHeader('SCHEDULE A - FIXED ASSETS');
 
     if (!balanceSheetData?.data?.depreciatingAssets?.length) {
       addNoDataMessage();
@@ -1110,6 +1121,28 @@ export async function GET(request, { params }) {
           formatCurrency(asset.closingBalance)
         ]);
       });
+      
+      if (Array.isArray(data.fixedAssets)) {
+        data.fixedAssets.forEach(asset => {
+          // Add to totals
+          totals.opening += parseFloat(asset.amount || 0); // Use amount for opening
+          totals.addition += parseFloat(asset.addedDuringYear || 0);
+          totals.total += parseFloat(asset.amount || 0); // Use amount for total
+          totals.depreciation += 0; // No depreciation for fixed assets
+          totals.closing += parseFloat(asset.amount || 0); // Use amount for closing
+
+          // Add row data
+          scheduleData.push([
+            asset.description.toUpperCase(),
+            formatCurrency(asset.amount), // Show amount in opening
+            formatCurrency(asset.addedDuringYear),
+            formatCurrency(asset.amount), // Show amount in total
+            "0%", // Set rate to 0%
+            formatCurrency(0), // No depreciation
+            formatCurrency(asset.amount) // Show amount in closing
+          ]);
+        });
+      }
       
       // Add totals row
       scheduleData.push([
